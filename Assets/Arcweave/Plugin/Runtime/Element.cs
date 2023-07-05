@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using Arcweave.Transpiler;
 
 namespace Arcweave
 {
@@ -62,6 +63,11 @@ namespace Arcweave
         public State GetState() {
             var save = project.SaveVariables();
             var state = new State(this);
+            Interpreter interpreter = new Interpreter(project, id);
+            Interpreter.TranspilerOutput output = interpreter.RunScript(rawContent);
+            Debug.Log(rawContent);
+            Debug.Log(GetRuntimeContent());
+            Debug.Log(output.output);
             project.LoadVariables(save);
             return state;
         }

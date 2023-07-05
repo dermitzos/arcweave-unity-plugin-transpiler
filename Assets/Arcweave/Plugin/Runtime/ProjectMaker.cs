@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using Arcweave.FullSerializer;
-
+using System.Diagnostics;
 
 namespace Arcweave
 {
@@ -132,7 +132,7 @@ namespace Arcweave
                 }
 
                 var cover = MakeCover(jelements, id);
-                ( node as Element ).Set(id, outputs, Utils.CleanString(title), Utils.CleanString(content), components, cover);
+                ( node as Element ).Set(id, outputs, Utils.CleanString(title), content, components, cover);
             }
             return (Element)node;
         }
