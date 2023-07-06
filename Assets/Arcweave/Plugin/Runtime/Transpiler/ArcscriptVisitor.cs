@@ -11,6 +11,7 @@ using UnityEditor;
 using UnityEngine;
 using System.Collections;
 using System.Xml.Linq;
+using System.Reflection.Emit;
 
 namespace Arcweave.Transpiler
 {
@@ -195,10 +196,10 @@ namespace Arcweave.Transpiler
                     argument_list_result = result["variable_list"];
                 }
             }
-            List<object> argument_list = ((IList)argument_list_result)?.Cast<object>().ToList();
+            List<Argument> argument_list = ((IList)argument_list_result)?.Cast<Argument>().ToList();
             if (argument_list == null)
             {
-                argument_list = new List<object>() { };
+                argument_list = new List<Argument>() { };
             }
             Type resultType = this.functions.returnTypes[fname];
             object returnValue = this.functions.functions[fname](argument_list);
@@ -208,12 +209,14 @@ namespace Arcweave.Transpiler
 
         public override Dictionary<string, object> VisitVariable_list([NotNull] ArcscriptParser.Variable_listContext context)
         {
-            List<string> variables = new List<string>();
+            List<Argument> variables = new List<Argument>();
             foreach(ITerminalNode variable in context.VARIABLE() )
             {
-                variables.Add(variable.GetText());
+                Variable varObject = this.state.GetVariable(variable.GetText());
+                Argument arg = new Argument(typeof (Variable), varObject);
+                variables.Add(arg);
             }
-            return new Dictionary<string, object>() { { "variable_list", variables.ToArray() } };
+            return new Dictionary<string, object>() { { "variable_list", variables } };
         }
 
         public override Dictionary<string, object> VisitCompound_condition_or([NotNull] ArcscriptParser.Compound_condition_orContext context)
@@ -440,11 +443,11 @@ namespace Arcweave.Transpiler
                 argument_list_result = result["argument_list"];
             }
 
-            List<object> argument_list = ((IList)argument_list_result)?.Cast<object>().ToList();
+            List<Argument> argument_list = ((IList)argument_list_result)?.Cast<Argument>().ToList();
             
             if (argument_list == null)
             {
-                argument_list = new List<object>() { };
+                argument_list = new List<Argument>() { };
             }
             string fname = context.FNAME().GetText();
 
@@ -459,7 +462,7 @@ namespace Arcweave.Transpiler
             List<object> argumentList = new List<object>();
             foreach(ArcscriptParser.ArgumentContext argument in context.argument())
             {
-                argumentList.Add(this.VisitArgument(argument));
+                argumentList.Add(this.VisitArgument(argument)["result"]);
             }
             return new Dictionary<string, object> { { "argument_list", argumentList } };
         }
@@ -470,13 +473,16 @@ namespace Arcweave.Transpiler
             {
                 string result = context.STRING().GetText();
                 result = result.Substring(1, result.Length - 2);
-                return new Dictionary<string, object>() { { "result", result }, { "resultType", typeof(string) } };
+                return new Dictionary<string, object>() { { "result", new Argument(typeof(string), result) } };
             }
             if (context.mention() != null)
             {
-                return this.VisitMention(context.mention());
+                Dictionary<string, object> mention_result = this.VisitMention(context.mention());
+                Argument argument = new Argument(typeof (Mention), mention_result["result"]);
+                return new Dictionary<string, object>() { { "result", argument } };
             }
-            return this.VisitAdditive_numeric_expression(context.additive_numeric_expression());
+            Dictionary<string, object> num_expr_result = this.VisitAdditive_numeric_expression(context.additive_numeric_expression());
+            return new Dictionary<string, object>() { { "result", new Argument(typeof(double), num_expr_result["result"]) } };
         }
 
         public override Dictionary<string, object> VisitMention([NotNull] ArcscriptParser.MentionContext context)
@@ -493,7 +499,7 @@ namespace Arcweave.Transpiler
             {
                 label = context.MENTION_LABEL().GetText();
             }
-            return new Dictionary<string, object> { { "attrs", attrs }, { "label", label } };
+            return new Dictionary<string, object> { { "result", new Mention(label, attrs) }, { "type", typeof(Mention) } };
         }
 
         public override Dictionary<string, object> VisitMention_attributes([NotNull] ArcscriptParser.Mention_attributesContext context)
@@ -512,6 +518,29 @@ namespace Arcweave.Transpiler
                 value = strvalue;
             }
             return new Dictionary<string, object> { { "name", name }, { "value", value } };
+        }
+
+        public class Argument
+        {
+            public Type type { get; private set; }
+            public object value { get; private set; }
+            public Argument(Type type, object value)
+            {
+                this.type = type;
+                this.value = value;
+            }
+        }
+
+        public class Mention
+        {
+            public string label { get; private set; }
+            public Dictionary<string, string> attrs { get; private set; }
+            
+            public Mention(string label, Dictionary<string, string> attrs)
+            {
+                this.label = label;
+                this.attrs = attrs;
+            }
         }
     }
 }
