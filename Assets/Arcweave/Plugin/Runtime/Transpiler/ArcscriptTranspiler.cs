@@ -32,7 +32,7 @@ namespace Arcweave.Transpiler
         {
             IParseTree tree = this.GetParseTree(code);
             ArcscriptVisitor visitor = new ArcscriptVisitor(this.elementId, this.Project);
-            Dictionary<string, object> result = tree.Accept(visitor);
+            Dictionary<string, object> result = (Dictionary<string, object>) tree.Accept(visitor);
 
 
             List<string> outputs = visitor.state.outputs;
